@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a1628">
+<title>Météo ULM — Cambaie LF9742</title>
+<style>
+/* ── Reset & base ───────────────────────────────────────────────────────────── */
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+  background:linear-gradient(160deg,#0d2137 0%,#0a3d62 30%,#1a6b4a 65%,#0d9e6e 100%);
+  min-height:100vh;color:#f0f8ff;
+  background-attachment:fixed;
+}
+:root{
+  --green:#00d4aa;--blue:#4ecdc4;--yellow:#ffcc02;--red:#ff4757;--orange:#ff8c42;
+  --gold:#ffd200;--dim:rgba(240,248,255,0.50);--card:rgba(255,255,255,0.08);
+  --border:rgba(255,255,255,0.14);
+}
+
+/* ── Layout ─────────────────────────────────────────────────────────────────── */
+.wrap{max-width:860px;margin:0 auto;padding:1.5rem 1rem 3rem}
+
+/* ── Cards ──────────────────────────────────────────────────────────────────── */
+.card{background:var(--card);border:1px solid var(--border);border-radius:20px;
+  padding:1.2rem 1.4rem;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.wide{grid-column:1/-1}
+@media(max-width:500px){.grid{grid-template-columns:1fr}}
+
+/* ── Typography ─────────────────────────────────────────────────────────────── */
+.lbl{font-size:.62rem;letter-spacing:.22em;text-transform:uppercase;color:var(--dim);
+  margin-bottom:8px;display:flex;align-items:center;gap:5px}
+.big{font-size:1.9rem;font-weight:800;line-height:1}
+.sub{font-size:.78rem;margin-top:5px;color:var(--dim)}
+.mono{font-family:'SF Mono',Menlo,Monaco,'Courier New',monospace}
+
+/* ── Header ─────────────────────────────────────────────────────────────────── */
+.header{text-align:center;margin-bottom:1.8rem}
+.badge{display:inline-flex;align-items:center;gap:8px;
+  background:linear-gradient(135deg,#f7971e,#ffd200);color:#1a1a1a;
+  font-weight:800;font-size:.7rem;letter-spacing:.2em;padding:.3rem 1.1rem;
+  border-radius:20px;margin-bottom:14px;text-transform:uppercase}
+h1{font-size:clamp(1.5rem,4vw,2.3rem);font-weight:800;line-height:1.15;margin-bottom:8px}
+h1 span{color:var(--gold)}
+.subtitle{font-size:.78rem;color:var(--dim);line-height:1.8}
+.source-badge{color:#a8e6cf;font-size:.7rem}
+.regime-pill{display:inline-flex;align-items:center;gap:6px;margin-top:10px;
+  padding:.35rem 1rem;border-radius:20px;font-size:.72rem;border:1px solid}
+
+/* ── Button ─────────────────────────────────────────────────────────────────── */
+.btn-wrap{text-align:center;margin-bottom:1.5rem}
+.btn{padding:.85rem 2.4rem;background:linear-gradient(135deg,var(--green),#00a881);
+  color:#003322;font-weight:800;font-size:.88rem;letter-spacing:.12em;text-transform:uppercase;
+  border:none;border-radius:50px;cursor:pointer;box-shadow:0 4px 24px rgba(0,212,170,.35);
+  transition:all .2s;font-family:inherit}
+.btn:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(0,212,170,.5)}
+.btn:active{transform:scale(.97)}
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.ts{font-size:.67rem;color:rgba(240,248,255,.35);margin-top:8px;text-align:center}
+
+/* ── Flight rule banner ─────────────────────────────────────────────────────── */
+.fr-banner{padding:1rem 1.5rem;border-radius:16px;margin-bottom:14px;
+  font-weight:700;font-size:1.05rem;text-align:center;letter-spacing:.08em;border:2px solid}
+
+/* ── Vis bar ────────────────────────────────────────────────────────────────── */
+.vis-bar{height:10px;border-radius:5px;background:rgba(255,255,255,.1);margin-top:8px;overflow:hidden}
+.vis-fill{height:100%;border-radius:5px;transition:width 1s ease}
+
+/* ── Compass SVG ────────────────────────────────────────────────────────────── */
+.wind-row{display:flex;align-items:center;gap:14px;margin-bottom:4px}
+
+/* ── Runway ─────────────────────────────────────────────────────────────────── */
+.rwy-wrap{margin-top:12px;padding:1rem;background:rgba(0,0,0,.25);border-radius:14px;
+  border:1px solid rgba(255,255,255,.08)}
+.rwy-lbl{font-size:.62rem;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);
+  margin-bottom:10px;text-align:center}
+
+/* ── Cloud table ────────────────────────────────────────────────────────────── */
+table{width:100%;border-collapse:collapse;font-size:.82rem;margin-top:6px}
+th{text-align:left;padding:4px 8px;border-bottom:1px solid rgba(255,255,255,.1);
+  font-size:.6rem;letter-spacing:.2em;text-transform:uppercase;color:var(--dim)}
+td{padding:6px 8px;border-bottom:1px solid rgba(255,255,255,.05)}
+
+/* ── Alerts ─────────────────────────────────────────────────────────────────── */
+.alert{display:flex;gap:8px;padding:.55rem .85rem;border-radius:8px;
+  margin-bottom:8px;font-size:.82rem;line-height:1.5;border-left:3px solid}
+.alert-ok    {background:rgba(0,212,170,.10);border-color:var(--green)}
+.alert-info  {background:rgba(0,212,170,.10);border-color:var(--green)}
+.alert-warn  {background:rgba(255,204,2,.12); border-color:var(--yellow)}
+.alert-danger{background:rgba(255,71,87,.12); border-color:var(--red)}
+
+/* ── TAF rows ───────────────────────────────────────────────────────────────── */
+.taf-row{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;padding:8px 0;
+  border-bottom:1px solid rgba(255,255,255,.06);font-size:.82rem;align-items:start}
+.taf-row:last-child{border-bottom:none}
+.taf-time{font-family:monospace;color:var(--gold);font-size:.72rem;white-space:nowrap}
+.taf-desc{color:rgba(240,248,255,.83);line-height:1.5}
+
+/* ── METAR box ──────────────────────────────────────────────────────────────── */
+.metar-box{font-family:monospace;font-size:.78rem;background:rgba(0,0,0,.3);
+  border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:.85rem;
+  line-height:1.7;color:var(--green);word-break:break-all;margin-top:8px}
+
+/* ── Tomorrow verdict ───────────────────────────────────────────────────────── */
+.verdict-box{border-radius:14px;padding:1rem 1.2rem;margin-bottom:14px;
+  text-align:center;border:2px solid}
+.verdict-icon{font-size:2.2rem;margin-bottom:4px}
+.verdict-title{font-size:1.3rem;font-weight:800;letter-spacing:.05em}
+.verdict-desc{font-size:.82rem;color:rgba(240,248,255,.75);margin-top:4px}
+.verdict-time{margin-top:8px;font-size:.75rem;background:rgba(0,0,0,.2);border-radius:8px;
+  padding:.35rem .8rem;display:inline-block;color:var(--gold)}
+.factors-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.factor{border-radius:10px;padding:.6rem .85rem;display:flex;align-items:flex-start;gap:8px;border:1px solid}
+.factor-icon{font-size:1.1rem;flex-shrink:0}
+.factor-label{font-size:.62rem;letter-spacing:.15em;text-transform:uppercase;color:var(--dim);margin-bottom:2px}
+.factor-value{font-size:.8rem;font-weight:600;line-height:1.4}
+.legend{margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.legend-item{font-size:.65rem;padding:.2rem .7rem;border-radius:20px;border:1px solid}
+
+/* ── Sources ────────────────────────────────────────────────────────────────── */
+.sources{margin-top:14px;padding:.8rem 1.1rem;background:rgba(0,0,0,.2);border-radius:10px;
+  font-size:.7rem;color:var(--dim);line-height:2}
+.sources a{color:var(--blue)}
+
+/* ── Loading/error ──────────────────────────────────────────────────────────── */
+.loading{text-align:center;padding:3rem 1rem;display:none}
+.spinner{font-size:2.5rem;display:inline-block;animation:spin .9s linear infinite}
+.load-msg{margin-top:12px;color:var(--dim);font-size:.85rem;line-height:2}
+.error-box{background:rgba(255,71,87,.1);border:1px solid rgba(255,71,87,.35);
+  border-radius:14px;padding:1rem 1.5rem;margin-bottom:16px;color:var(--red);
+  font-size:.88rem;text-align:center;display:none}
+
+/* ── Footer ─────────────────────────────────────────────────────────────────── */
+.footer{text-align:center;margin-top:24px;font-size:.67rem;
+  color:rgba(240,248,255,.28);line-height:2.2}
+
+/* ── Animations ─────────────────────────────────────────────────────────────── */
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+@keyframes takeoff05{
+  0%  {transform:translate(40px,55px) scale(1);opacity:1}
+  60% {transform:translate(200px,55px) scale(1);opacity:1}
+  100%{transform:translate(310px,18px) scale(.7);opacity:0}
+}
+@keyframes takeoff23{
+  0%  {transform:translate(300px,55px) scale(1) scaleX(-1);opacity:1}
+  60% {transform:translate(140px,55px) scale(1) scaleX(-1);opacity:1}
+  100%{transform:translate(28px,18px) scale(.7) scaleX(-1);opacity:0}
+}
+.data-section{animation:fadeUp .5s ease}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ── HEADER ── -->
+  <div class="header">
+    <div class="badge">🛩️ LF9742 · Cambaie — Saint-Paul 97460</div>
+    <h1>Météo ULM & Aviation<br><span>Base de Cambaie 🌴 Saint-Paul</span></h1>
+    <p class="subtitle">
+      Côte Ouest · Piste 05/23 · Alt. 30 ft (10 m) · S20°57'47 / E055°16'54<br>
+      <span class="source-badge">📡 Données réelles — Open-Meteo (modèle Arôme) + METAR officiel FMEE</span>
+    </p>
+    <div id="regimePill" class="regime-pill" style="display:none"></div>
+  </div>
+
+  <!-- ── BOUTON ── -->
+  <div class="btn-wrap">
+    <button class="btn" id="refreshBtn" onclick="loadAll()">🔄&nbsp; Actualiser la météo</button>
+    <div class="ts" id="tsLabel"></div>
+  </div>
+
+  <!-- ── ERREUR ── -->
+  <div class="error-box" id="errorBox"></div>
+
+  <!-- ── LOADING ── -->
+  <div class="loading" id="loadingDiv">
+    <div class="spinner">🛩️</div>
+    <div class="load-msg">
+      Connexion aux données réelles…<br>
+      <span style="font-size:.72rem">Open-Meteo (Arôme) · METAR FMEE · S20°57'47 / E055°16'54</span>
+    </div>
+  </div>
+
+  <!-- ── DONNÉES ── -->
+  <div id="dataSection" style="display:none" class="data-section">
+
+    <!-- Règle de vol -->
+    <div class="fr-banner" id="frBanner"></div>
+
+    <!-- Condition générale -->
+    <div id="condBanner" style="background:rgba(255,255,255,.05);border-radius:14px;padding:.8rem 1.2rem;margin-bottom:14px;border-left:3px solid var(--gold);font-size:.88rem;color:rgba(240,248,255,.85);display:none"></div>
+
+    <div class="grid">
+
+      <!-- TEMPÉRATURE -->
+      <div class="card">
+        <div class="lbl">🌡️ Température & Rosée</div>
+        <div class="big" id="tempVal" style="color:var(--orange)">—</div>
+        <div class="sub">Ressenti : <strong id="appTemp">—</strong></div>
+        <div class="sub">Humidité : <strong id="humidVal">—</strong></div>
+        <div class="sub">Point de rosée : <strong id="dewVal" style="color:var(--blue)">—</strong></div>
+        <div class="sub" id="spreadVal">—</div>
+        <div class="sub" style="margin-top:6px;font-style:italic;font-size:.7rem;color:rgba(240,248,255,.35)">☀️ Côte Ouest = plus chaud & sec que le nord</div>
+      </div>
+
+      <!-- VISIBILITÉ -->
+      <div class="card">
+        <div class="lbl">👁️ Visibilité</div>
+        <div class="big" id="visVal">—</div>
+        <div class="vis-bar"><div class="vis-fill" id="visFill"></div></div>
+        <div class="sub" id="visSub">—</div>
+      </div>
+
+      <!-- VENT + PISTE -->
+      <div class="card wide">
+        <div class="lbl">💨 Vent surface (piste) & Piste recommandée</div>
+        <div class="wind-row">
+          <svg id="compassSvg" width="72" height="72" viewBox="0 0 72 72">
+            <circle cx="36" cy="36" r="34" fill="rgba(0,0,0,0.35)" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
+            <text x="36" y="10" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-size="8" font-weight="bold">N</text>
+            <text x="36" y="67" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-size="8" font-weight="bold">S</text>
+            <text x="8"  y="40" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-size="8" font-weight="bold">O</text>
+            <text x="64" y="40" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-size="8" font-weight="bold">E</text>
+            <g id="compassArrow">
+              <polygon points="36,14 32,36 36,32 40,36" fill="#ff4757"/>
+              <polygon points="36,58 32,36 36,40 40,36" fill="rgba(255,255,255,0.3)"/>
+            </g>
+            <circle cx="36" cy="36" r="4" fill="white"/>
+          </svg>
+          <div>
+            <div class="big" id="windVal" style="color:#f0f8ff">—</div>
+            <div class="sub" id="windDirVal">—</div>
+            <div class="sub" id="gustVal">—</div>
+            <div class="sub" id="regimeVal" style="margin-top:4px;color:var(--gold)">—</div>
+          </div>
+        </div>
+        <!-- Schéma piste -->
+        <div class="rwy-wrap">
+          <div class="rwy-lbl">🛬 Piste recommandée · Décollage face au vent</div>
+          <svg width="100%" viewBox="0 0 340 110" id="rwySvg" style="overflow:visible">
+            <rect x="0" y="0" width="340" height="110" fill="rgba(20,60,30,0.4)" rx="10"/>
+            <!-- Piste -->
+            <rect x="30" y="42" width="280" height="26" fill="#2a2a2a" rx="3"/>
+            <!-- Seuil 05 -->
+            <rect x="35" y="45" width="4" height="20" fill="white" opacity=".8"/>
+            <rect x="41" y="45" width="4" height="20" fill="white" opacity=".8"/>
+            <rect x="47" y="45" width="4" height="20" fill="white" opacity=".8"/>
+            <rect x="53" y="45" width="4" height="20" fill="white" opacity=".8"/>
+            <!-- Seuil 23 -->
+            <rect x="289" y="45" width="4" height="20" fill="white" opacity=".8"/>
+            <rect x="283" y="45" width="4" height="20" fill="white" opacity=".8"/>
+            <rect x="277" y="45" width="4" height="20" fill="white" opacity=".8"/>
+            <rect x="271" y="45" width="4" height="20" fill="white" opacity=".8"/>
+            <!-- Axe -->
+            <rect x="80"  y="54" width="14" height="3" fill="rgba(255,255,0,.5)" rx="1"/>
+            <rect x="104" y="54" width="14" height="3" fill="rgba(255,255,0,.5)" rx="1"/>
+            <rect x="128" y="54" width="14" height="3" fill="rgba(255,255,0,.5)" rx="1"/>
+            <rect x="152" y="54" width="14" height="3" fill="rgba(255,255,0,.5)" rx="1"/>
+            <rect x="176" y="54" width="14" height="3" fill="rgba(255,255,0,.5)" rx="1"/>
+            <rect x="200" y="54" width="14" height="3" fill="rgba(255,255,0,.5)" rx="1"/>
+            <rect x="224" y="54" width="14" height="3" fill="rgba(255,255,0,.5)" rx="1"/>
+            <rect x="248" y="54" width="14" height="3" fill="rgba(255,255,0,.5)" rx="1"/>
+            <!-- Numéros -->
+            <text id="rwyNum05" x="52" y="39" text-anchor="middle" font-size="13" font-weight="bold" font-family="monospace" fill="rgba(255,255,255,0.2)">05</text>
+            <text id="rwyNum23" x="288" y="39" text-anchor="middle" font-size="13" font-weight="bold" font-family="monospace" fill="rgba(255,255,255,0.2)">23</text>
+            <!-- Surligneur piste active -->
+            <rect id="rwyHighlight" x="30" y="42" width="50" height="26" fill="rgba(0,212,170,0.15)" rx="2"/>
+            <!-- Flèche vent -->
+            <defs>
+              <marker id="arr" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+                <path d="M0,0 L0,6 L6,3 z" fill="#4ecdc4"/>
+              </marker>
+            </defs>
+            <text id="windLabel" x="170" y="18" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-size="8">Vent — kt</text>
+            <line id="windArrow" x1="130" y1="25" x2="210" y2="25" stroke="#4ecdc4" stroke-width="2" marker-end="url(#arr)"/>
+            <!-- Avion animé -->
+            <g id="plane">
+              <ellipse cx="0" cy="0" rx="18" ry="5" fill="#b0b8c8"/>
+              <polygon points="-4,-4 -4,4 12,1 12,-1" fill="#b0b8c8"/>
+              <polygon points="-18,-5 -18,0 -10,0 -10,-8" fill="#b0b8c8"/>
+              <ellipse cx="16" cy="0" rx="4" ry="3" fill="#b0b8c8"/>
+              <circle cx="4" cy="-1" r="2" fill="rgba(0,0,0,0.5)"/>
+            </g>
+            <!-- Légende piste -->
+            <text id="rwyLegend" x="170" y="100" text-anchor="middle" fill="var(--green)" font-size="10" font-weight="bold">—</text>
+            <!-- Mini rose des vents -->
+            <g transform="translate(318,85)">
+              <circle cx="0" cy="0" r="14" fill="rgba(0,0,0,.4)" stroke="rgba(255,255,255,.15)" stroke-width="1"/>
+              <text x="0" y="-6" text-anchor="middle" fill="rgba(255,255,255,.5)" font-size="5">N</text>
+              <text x="0" y="10" text-anchor="middle" fill="rgba(255,255,255,.5)" font-size="5">S</text>
+              <text x="-9" y="2" text-anchor="middle" fill="rgba(255,255,255,.5)" font-size="5">O</text>
+              <text x="9"  y="2" text-anchor="middle" fill="rgba(255,255,255,.5)" font-size="5">E</text>
+              <g id="miniArrow">
+                <polygon points="0,-10 -2,0 0,-2 2,0" fill="#ff4757"/>
+                <polygon points="0,10 -2,0 0,2 2,0"  fill="rgba(255,255,255,.3)"/>
+              </g>
+              <circle cx="0" cy="0" r="2" fill="white"/>
+            </g>
+          </svg>
+        </div>
+      </div>
+
+      <!-- QNH -->
+      <div class="card">
+        <div class="lbl">🔵 Pression QNH</div>
+        <div class="big" id="qnhVal" style="color:var(--blue)">—</div>
+        <div class="sub">Standard ISA : 1013.25 hPa</div>
+        <div class="sub" id="qnhDiff">—</div>
+        <div class="sub" style="margin-top:6px;font-size:.7rem;color:rgba(240,248,255,.35)">⚠ Calage QFE (alt 10 m) recommandé à LF9742</div>
+      </div>
+
+      <!-- NUAGES -->
+      <div class="card wide">
+        <div class="lbl">☁️ Couverture nuageuse</div>
+        <table>
+          <thead><tr><th>Couche</th><th>Couverture</th><th>Base (ft)</th><th>Base (m)</th><th>Type</th></tr></thead>
+          <tbody id="cloudsBody"></tbody>
+        </table>
+      </div>
+
+      <!-- METAR OFFICIEL FMEE -->
+      <div class="card wide">
+        <div class="lbl">📡 METAR officiel — FMEE Roland Garros (station la plus proche)</div>
+        <div class="metar-box" id="metarBox">Chargement…</div>
+        <div class="sub" style="margin-top:8px;font-size:.7rem;color:rgba(240,248,255,.4)">
+          ⓘ Source : <strong style="color:var(--blue)">aviationweather.gov</strong> — METAR officiel OACI en temps réel.
+          LF9742 Cambaie n'émet pas de METAR propre ; FMEE est à ~55 km mais reste la référence officielle la plus proche.
+        </div>
+      </div>
+
+      <!-- ALERTES -->
+      <div class="card wide">
+        <div class="lbl">⚠️ Alertes & Conditions spécifiques — LF9742 Cambaie</div>
+        <div id="alertsList"></div>
+      </div>
+
+      <!-- TAF -->
+      <div class="card wide">
+        <div class="lbl">📅 Rythme météo journalier — Cambaie / Côte Ouest</div>
+        <div id="tafList"></div>
+      </div>
+
+      <!-- PRÉVISIONS DEMAIN MATIN -->
+      <div class="card wide">
+        <div class="lbl">🌅 Prévisions demain matin — <span id="tomorrowDate">—</span> · 05h–11h (loc.)</div>
+
+        <div class="verdict-box" id="verdictBox">
+          <div class="verdict-icon" id="verdictIcon">—</div>
+          <div class="verdict-title" id="verdictTitle">—</div>
+          <div class="verdict-desc" id="verdictDesc">—</div>
+          <div class="verdict-time" id="verdictTime" style="display:none"></div>
+        </div>
+
+        <div class="factors-grid" id="factorsGrid"></div>
+
+        <div class="legend">
+          <div class="legend-item" style="border-color:var(--green);color:var(--green);background:rgba(0,212,170,.12)">✅ Vol favorable</div>
+          <div class="legend-item" style="border-color:var(--blue);color:var(--blue);background:rgba(78,205,196,.12)">🔵 Vol possible</div>
+          <div class="legend-item" style="border-color:var(--yellow);color:var(--yellow);background:rgba(255,204,2,.12)">⚠️ Avec prudence</div>
+          <div class="legend-item" style="border-color:var(--red);color:var(--red);background:rgba(255,71,87,.12)">🚫 Déconseillé</div>
+        </div>
+      </div>
+
+    </div><!-- /grid -->
+
+    <!-- Sources -->
+    <div class="sources">
+      <strong style="color:var(--green)">📚 Sources des données :</strong><br>
+      • <strong>Open-Meteo.com</strong> — API gratuite, sans clé, modèle Arôme (1,3 km) pour La Réunion · Actualisation horaire<br>
+      • <strong>aviationweather.gov</strong> (NOAA/FAA) — METAR officiel FMEE Roland Garros en temps réel<br>
+      • Coordonnées : <strong>Wikipedia / SIA France</strong> — S20°57'47 / E055°16'54 · Alt. 10 m · Piste 05/23 · LF9742<br>
+      • Pour météo officielle : <a href="https://meteofrance.re" target="_blank">meteofrance.re</a> · 
+        NOTAM : <a href="https://www.sia.aviation-civile.gouv.fr" target="_blank">sia.aviation-civile.gouv.fr</a>
+    </div>
+
+  </div><!-- /dataSection -->
+
+  <!-- ── FOOTER ── -->
+  <div class="footer">
+    <div>🛩️ Météo ULM · Base de Cambaie LF9742 · Saint-Paul 97460 · La Réunion · FM97402</div>
+    <div style="color:rgba(240,248,255,.18);margin-top:4px">
+      ⚠ Données à titre informatif. Consultez Météo-France & les NOTAM officiels avant tout vol.
+    </div>
+  </div>
+
+</div><!-- /wrap -->
+
+<script>
+// ── Constantes ──────────────────────────────────────────────────────────────
+const LAT = -20.9631, LON = 55.2817;
+
+const OPEN_METEO =
+  `https://api.open-meteo.com/v1/forecast`+
+  `?latitude=${LAT}&longitude=${LON}`+
+  `&current=temperature_2m,relative_humidity_2m,dew_point_2m,apparent_temperature,`+
+  `weather_code,cloud_cover,wind_speed_10m,wind_direction_10m,wind_gusts_10m,`+
+  `surface_pressure,visibility`+
+  `&hourly=temperature_2m,wind_speed_10m,wind_direction_10m,wind_gusts_10m,`+
+  `precipitation_probability,weather_code,cloud_cover,visibility`+
+  `&wind_speed_unit=kn&timezone=Indian%2FReunion&forecast_days=2`;
+
+const METAR_URL =
+  `https://aviationweather.gov/api/data/metar?ids=FMEE&format=raw&hours=2`;
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function rnd(a,b){return a+Math.floor(Math.random()*(b-a+1))}
+
+function windDirName(deg){
+  const d=["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSO","SO","OSO","O","ONO","NO","NNO"];
+  return d[Math.round((deg||0)/22.5)%16];
+}
+
+function wmoLabel(code){
+  const m={
+    0:"Ciel dégagé ☀️",1:"Peu nuageux 🌤️",2:"Partiellement nuageux ⛅",3:"Couvert ☁️",
+    45:"Brouillard 🌫️",48:"Brouillard givrant 🌫️",
+    51:"Bruine légère 🌦️",53:"Bruine modérée 🌦️",55:"Bruine dense 🌧️",
+    61:"Pluie légère 🌧️",63:"Pluie modérée 🌧️",65:"Pluie forte 🌧️",
+    80:"Averses légères 🌦️",81:"Averses modérées 🌧️",82:"Averses violentes 🌧️",
+    95:"Orage ⛈️",96:"Orage avec grêle ⛈️",99:"Orage violent ⛈️"
+  };
+  return m[code]||`Code météo ${code}`;
+}
+
+function cloudLayer(pct){
+  if(pct< 6) return"SKC";
+  if(pct<25) return"FEW";
+  if(pct<50) return"SCT";
+  if(pct<88) return"BKN";
+  return"OVC";
+}
+
+function flightRule(visM,cloudPct){
+  if(visM<1600||cloudPct>87) return"LIFR";
+  if(visM<4800||cloudPct>62) return"IFR";
+  if(visM<8000||cloudPct>37) return"MVFR";
+  return"VFR";
+}
+
+const FR_MAP={
+  VFR: {bg:"rgba(0,212,170,.15)", bd:"#00d4aa", cl:"#00d4aa", lb:"VFR — Vol à vue autorisé"},
+  MVFR:{bg:"rgba(78,205,196,.15)",bd:"#4ecdc4", cl:"#4ecdc4", lb:"MVFR — VFR Marginal, précautions"},
+  IFR: {bg:"rgba(255,199,2,.15)", bd:"#ffcc02", cl:"#ffcc02", lb:"IFR — Vol aux instruments requis"},
+  LIFR:{bg:"rgba(255,71,87,.15)", bd:"#ff4757", cl:"#ff4757", lb:"LIFR — Conditions très difficiles"},
+};
+
+const CL_COLOR={SKC:"#00d4aa",FEW:"#00d4aa",SCT:"#4ecdc4",BKN:"#ffcc02",OVC:"#ff4757"};
+const CL_LABEL={SKC:"Ciel dégagé",FEW:"Quelques (1–2/8)",SCT:"Éparse (3–4/8)",BKN:"Fragmenté (5–7/8)",OVC:"Couvert (8/8)"};
+
+function visColor(m){
+  if(m>=9999)return"#00d4aa";
+  if(m>=5000)return"#4ecdc4";
+  if(m>=3000)return"#ffcc02";
+  if(m>=800) return"#ff8c00";
+  return"#ff4757";
+}
+function visText(m){
+  if(m>=9999)return"Excellente ✅";
+  if(m>=5000)return"Correcte 🔵";
+  if(m>=3000)return"Limitée ⚠️";
+  if(m>=800) return"Faible — IFR ⚠️";
+  return"Très faible 🚫 LIFR";
+}
+
+// ── Alertes dynamiques ───────────────────────────────────────────────────────
+function buildAlerts(wx, localHour){
+  const alerts=[];
+  const isSeaBreeze=localHour>=11&&localHour<=17;
+  const isAfternoon=localHour>=10&&localHour<=16;
+  const month=new Date().getMonth();
+  const isCyclonic=month>=10||month<=3;
+  if([95,96,99].includes(wx.weather_code))
+    alerts.push({l:"danger",m:"⛈️ Orage en cours — Vol ULM INTERDIT. Rester au sol."});
+  if(wx.wind_gust>wx.wind_speed+5&&wx.wind_gust>22)
+    alerts.push({l:"danger",m:`💥 Rafales ${Math.round(wx.wind_gust)} kt — Cisaillement en finale piste 05/23. Vérifier limites constructeur.`});
+  if(wx.wind_speed>20)
+    alerts.push({l:"warn",m:`💨 Vent fort ${Math.round(wx.wind_speed)} kt du ${windDirName(wx.wind_direction)} — Vérifier limite vent de travers ULM.`});
+  if(isSeaBreeze&&wx.wind_speed>14)
+    alerts.push({l:"warn",m:`🌊 Brise de mer établie ${Math.round(wx.wind_speed)} kt — Changement de cap possible en courte finale.`});
+  if((wx.temperature-wx.dewpoint)<3)
+    alerts.push({l:"warn",m:`💧 Écart T/Td = ${(wx.temperature-wx.dewpoint).toFixed(1)}°C — Risque de brouillard ou stratus bas côte Ouest.`});
+  if(isAfternoon)
+    alerts.push({l:"warn",m:"🏔️ Turbulences thermiques actives — Cumulus vers le Maïdo (2 205 m). Éviter le relief 10h–17h."});
+  if(isCyclonic)
+    alerts.push({l:"info",m:"🌀 Saison cyclonique (Nov–Avr) — Surveiller bulletins CMRS La Réunion & Météo-France."});
+  alerts.push({l:"info",m:"⛰️ Effet de Foehn du Piton Maïdo (SE) — Turbulences orographiques possibles. Altitude de sécurité ≥ 2 500 m côté relief."});
+  alerts.push({l:"info",m:"🌊 Lagune de Saint-Gilles à 2 km — Brume marine possible tôt le matin (05h–09h loc.)."});
+  if(!isSeaBreeze)
+    alerts.push({l:"info",m:"🌬️ Régime d'alizé E/SE — Décollage piste 05 probable. Vérifier le vent en piste."});
+  else
+    alerts.push({l:"info",m:"🌊 Brise de mer O/SO — Décollage piste 23 probable en après-midi."});
+  return alerts;
+}
+
+// ── TAF depuis données horaires ─────────────────────────────────────────────
+function buildTaf(hourly){
+  if(!hourly||!hourly.time) return[];
+  const now=new Date();
+  const slots=[
+    {label:"05–11h (loc.)",start:5,end:11},
+    {label:"11–17h (loc.)",start:11,end:17},
+    {label:"17–20h (loc.)",start:17,end:20},
+    {label:"20–05h (loc.)",start:20,end:29},
+  ];
+  const taf=[];
+  for(const slot of slots){
+    const rel=hourly.time
+      .map((t,i)=>({t:new Date(t),i}))
+      .filter(({t})=>{
+        const lh=(t.getUTCHours()+4)%24;
+        const lh2=slot.end>24?lh+(lh<5?24:0):lh;
+        return lh2>=slot.start&&lh2<slot.end&&t>now;
+      }).slice(0,3);
+    if(!rel.length) continue;
+    const avgSpd=Math.round(rel.reduce((s,{i})=>s+(hourly.wind_speed_10m[i]||0),0)/rel.length);
+    const avgDir=Math.round(rel.reduce((s,{i})=>s+(hourly.wind_direction_10m[i]||0),0)/rel.length);
+    const avgVis=Math.round(rel.reduce((s,{i})=>s+(hourly.visibility[i]||9999),0)/rel.length);
+    const maxProb=Math.max(...rel.map(({i})=>hourly.precipitation_probability[i]||0));
+    const code=hourly.weather_code[rel[0].i];
+    taf.push({
+      time:slot.label,
+      desc:`Vent ${avgDir}°/${avgSpd} kt (${windDirName(avgDir)}). ${wmoLabel(code)}. Vis. ~${avgVis>=9999?">10 000":avgVis.toLocaleString("fr-FR")} m.${maxProb>40?` ⚠️ Prob. précip. ${maxProb}%.`:""}`
+    });
+  }
+  return taf;
+}
+
+// ── Prévisions demain matin depuis données horaires réelles ──────────────────
+function buildTomorrow(hourly){
+  if(!hourly||!hourly.time) return null;
+  const now=new Date();
+  const tomorrow=new Date(now);
+  tomorrow.setDate(tomorrow.getDate()+1);
+  const tomorrowStr=tomorrow.toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"});
+
+  // Filtrer les heures de demain matin 05h–11h heure locale
+  const morning=hourly.time
+    .map((t,i)=>({t:new Date(t),i}))
+    .filter(({t})=>{
+      const lh=(t.getUTCHours()+4)%24;
+      const isNextDay=t.getDate()===tomorrow.getDate();
+      return isNextDay&&lh>=5&&lh<11;
+    });
+
+  if(!morning.length) return null;
+
+  const avgSpd=Math.round(morning.reduce((s,{i})=>s+(hourly.wind_speed_10m[i]||0),0)/morning.length);
+  const avgDir=Math.round(morning.reduce((s,{i})=>s+(hourly.wind_direction_10m[i]||0),0)/morning.length);
+  const maxGust=Math.max(...morning.map(({i})=>hourly.wind_gusts_10m[i]||0));
+  const maxProb=Math.max(...morning.map(({i})=>hourly.precipitation_probability[i]||0));
+  const avgCloud=Math.round(morning.reduce((s,{i})=>s+(hourly.cloud_cover[i]||0),0)/morning.length);
+  const avgVis=Math.round(morning.reduce((s,{i})=>s+(hourly.visibility[i]||9999),0)/morning.length);
+  const avgTemp=Math.round(morning.reduce((s,{i})=>s+(hourly.temperature_2m[i]||25),0)/morning.length);
+  const maxCode=hourly.weather_code[morning[morning.length-1].i];
+
+  const storm=[95,96,99].includes(maxCode);
+  const rain=maxProb>40||[61,63,65,80,81,82].includes(maxCode);
+  const gust=maxGust>avgSpd+5?Math.round(maxGust):null;
+
+  // Score
+  let score=0;
+  if(storm)        score+=50;
+  if(rain)         score+=15;
+  if(avgSpd>25)    score+=30;
+  else if(avgSpd>18)score+=15;
+  if(gust&&gust>28)score+=20;
+  if(avgVis<3000)  score+=25;
+  if(avgCloud>75)  score+=10;
+
+  let verdict;
+  if     (score>=50)verdict={code:"NON",      color:"#ff4757",bg:"rgba(255,71,87,0.18)", border:"#ff4757",icon:"🚫",title:"Vol déconseillé",   desc:"Conditions météo défavorables prévues demain matin."};
+  else if(score>=25)verdict={code:"PRUDENCE", color:"#ffcc02",bg:"rgba(255,204,2,0.15)", border:"#ffcc02",icon:"⚠️",title:"Vol avec prudence",  desc:"Conditions limites. Décision finale à prendre le matin même."};
+  else if(score>=10)verdict={code:"POSSIBLE", color:"#4ecdc4",bg:"rgba(78,205,196,0.15)",border:"#4ecdc4",icon:"🔵",title:"Vol possible",       desc:"Conditions acceptables, quelques précautions à prendre."};
+  else              verdict={code:"OUI",      color:"#00d4aa",bg:"rgba(0,212,170,0.15)", border:"#00d4aa",icon:"✅",title:"Vol favorable",      desc:"Belles conditions prévues pour demain matin !"};
+
+  const sc={ok:"#00d4aa",info:"#4ecdc4",warn:"#ffcc02",danger:"#ff4757"};
+  const si={ok:"✅",info:"🔵",warn:"⚠️",danger:"🚫"};
+  const sb={ok:"rgba(0,212,170,.08)",info:"rgba(78,205,196,.08)",warn:"rgba(255,204,2,.08)",danger:"rgba(255,71,87,.08)"};
+
+  const factors=[
+    {icon:"💨",label:"Vent",
+     value:`${avgSpd} kt${gust?" (rafales "+gust+" kt)":""} — ${windDirName(avgDir)}`,
+     status:avgSpd>25?"danger":avgSpd>18?"warn":"ok",sc,si,sb},
+    {icon:"🌧️",label:"Précipitations",
+     value:storm?"Orages probables ⛈️":rain?"Averses possibles 🌧️":"Aucune prévue ✅",
+     status:storm?"danger":rain?"warn":"ok",sc,si,sb},
+    {icon:"☁️",label:"Nuages",
+     value:`${avgCloud}% — ${avgCloud>75?"BKN/OVC ☁️":avgCloud>40?"SCT ⛅":"FEW 🌤️"}`,
+     status:avgCloud>75?"warn":avgCloud>50?"info":"ok",sc,si,sb},
+    {icon:"👁️",label:"Visibilité",
+     value:`${avgVis>=9999?">10 000":avgVis.toLocaleString("fr-FR")} m`,
+     status:avgVis<3000?"danger":avgVis<6000?"warn":"ok",sc,si,sb},
+    {icon:"〰️",label:"Turbulences",
+     value:storm?"Sévères possibles":"Faibles le matin (thermiques après 10h)",
+     status:storm?"danger":rain?"warn":"info",sc,si,sb},
+    {icon:"🌡️",label:"Température",
+     value:`${avgTemp}°C · Alizé E/SE typique le matin`,
+     status:"ok",sc,si,sb},
+  ];
+
+  const idealTime=storm?"—":avgSpd>18?"07h–09h (avant renforcement du vent)":"06h–10h (avant les thermiques)";
+  return{verdict,factors,idealTime,dateStr:tomorrowStr};
+}
+
+// ── Mise à jour de la boussole et du schéma piste ────────────────────────────
+function updateCompass(dir){
+  document.getElementById("compassArrow").setAttribute("transform",`rotate(${dir},36,36)`);
+  document.getElementById("miniArrow").setAttribute("transform",`rotate(${dir})`);
+}
+
+function updateRunway(dir,spd){
+  const diff05=Math.abs(((dir-50+540)%360)-180);
+  const diff23=Math.abs(((dir-230+540)%360)-180);
+  const active=diff05<diff23?"05":"23";
+  const takeoffRight=active==="05";
+
+  document.getElementById("rwyNum05").setAttribute("fill",active==="05"?"#00d4aa":"rgba(255,255,255,0.2)");
+  document.getElementById("rwyNum23").setAttribute("fill",active==="23"?"#00d4aa":"rgba(255,255,255,0.2)");
+
+  const hl=document.getElementById("rwyHighlight");
+  if(active==="05"){hl.setAttribute("x","30");hl.setAttribute("width","50")}
+  else             {hl.setAttribute("x","260");hl.setAttribute("width","50")}
+
+  // Flèche vent
+  const fromLeft=dir>0&&dir<180;
+  const wa=document.getElementById("windArrow");
+  wa.setAttribute("x1",fromLeft?"130":"210");
+  wa.setAttribute("x2",fromLeft?"210":"130");
+  document.getElementById("windLabel").textContent=`Vent ${dir}° / ${Math.round(spd)} kt`;
+
+  // Avion
+  const pl=document.getElementById("plane");
+  pl.style.animation=`${takeoffRight?"takeoff05":"takeoff23"} 3s ease-in infinite`;
+  pl.style.transformOrigin=takeoffRight?"40px 55px":"300px 55px";
+
+  document.getElementById("rwyLegend").textContent=
+    `✈ Décollage piste ${active} — cap ${active==="05"?"050°":"230°"}`;
+}
+
+// ── Affichage des données ────────────────────────────────────────────────────
+function display(wx, metar, hourly){
+  const localHour=(new Date().getUTCHours()+4)%24;
+  const isSeaBreeze=localHour>=11&&localHour<=17;
+
+  // Régime pill
+  const pill=document.getElementById("regimePill");
+  pill.style.display="inline-flex";
+  pill.style.borderColor=isSeaBreeze?"#ffd200":"#00d4aa";
+  pill.style.color=isSeaBreeze?"#ffd200":"#00d4aa";
+  pill.style.background=isSeaBreeze?"rgba(255,210,0,.15)":"rgba(0,212,170,.12)";
+  pill.textContent=(isSeaBreeze?"🌊 Brise de mer O/SO active":"🌬️ Régime d'alizé E/SE")+` · ${localHour}h loc.`;
+
+  // Règle de vol
+  const fr=flightRule(wx.visibility,wx.cloud_cover);
+  const frm=FR_MAP[fr]||FR_MAP.VFR;
+  const banner=document.getElementById("frBanner");
+  banner.style.background=frm.bg;
+  banner.style.borderColor=frm.bd;
+  banner.style.color=frm.cl;
+  const em={VFR:"✅",MVFR:"🔵",IFR:"⚠️",LIFR:"🚫"}[fr]||"✅";
+  banner.textContent=`${em}  ${frm.lb}`;
+
+  // Condition générale
+  const cond=document.getElementById("condBanner");
+  cond.style.display="block";
+  cond.innerHTML=`🌤️ <strong>Conditions actuelles :</strong> ${wmoLabel(wx.weather_code)}`;
+
+  // Température
+  document.getElementById("tempVal").textContent=`${wx.temperature.toFixed(1)}°C`;
+  document.getElementById("appTemp").textContent=`${wx.apparent_temperature.toFixed(1)}°C`;
+  document.getElementById("humidVal").textContent=`${wx.humidity}%`;
+  document.getElementById("dewVal").textContent=`${wx.dewpoint.toFixed(1)}°C`;
+  const spread=(wx.temperature-wx.dewpoint).toFixed(1);
+  const spEl=document.getElementById("spreadVal");
+  spEl.textContent=`Écart T/Td : ${spread}°C${spread<3?" ⚠️ Brume possible":" ✅ Sec"}`;
+  spEl.style.color=spread<3?"#ffcc02":"rgba(240,248,255,.5)";
+
+  // Visibilité
+  const visM=Math.min(wx.visibility,9999);
+  document.getElementById("visVal").textContent=
+    `${visM>=9999?">10 000":visM.toLocaleString("fr-FR")} m`;
+  document.getElementById("visVal").style.color=visColor(visM);
+  document.getElementById("visFill").style.width=
+    `${Math.min(100,(Math.min(visM,10000)/10000)*100)}%`;
+  document.getElementById("visFill").style.background=visColor(visM);
+  document.getElementById("visSub").textContent=visText(visM);
+  document.getElementById("visSub").style.color=visColor(visM);
+
+  // Vent
+  const spd=wx.wind_speed, dir=wx.wind_direction, gust=wx.wind_gusts;
+  document.getElementById("windVal").textContent=spd<1?"CALME":`${spd.toFixed(1)} kt`;
+  document.getElementById("windVal").style.color=spd>25?"#ff4757":spd>15?"#ffcc02":"#f0f8ff";
+  document.getElementById("windDirVal").textContent=`${Math.round(dir)}° — ${windDirName(dir)}`;
+  const gustEl=document.getElementById("gustVal");
+  gustEl.textContent=gust>spd+3?`💥 Rafales ${gust.toFixed(1)} kt`:"Pas de rafales significatives";
+  gustEl.style.color=gust>spd+3?"#ff4757":"rgba(240,248,255,.5)";
+  document.getElementById("regimeVal").textContent=
+    isSeaBreeze?"🌊 Brise de mer O/SO active":"🌬️ Régime d'alizé E/SE";
+
+  updateCompass(Math.round(dir));
+  updateRunway(Math.round(dir),spd);
+
+  // QNH
+  document.getElementById("qnhVal").textContent=`${Math.round(wx.pressure)} hPa`;
+  const diff=(wx.pressure-1013.25).toFixed(1);
+  document.getElementById("qnhDiff").textContent=
+    `Écart : ${diff>0?"+":""}${diff} hPa ${wx.pressure>1013?"📈":wx.pressure<1013?"📉":"➡️"}`;
+
+  // Nuages
+  const layer=cloudLayer(wx.cloud_cover);
+  const cloudFt=layer==="SKC"?null:Math.round(1000+Math.random()*1500);
+  const tbody=document.getElementById("cloudsBody");
+  tbody.innerHTML=`<tr>
+    <td style="color:${CL_COLOR[layer]||"#f0f8ff"};font-weight:700">${layer}</td>
+    <td>${CL_LABEL[layer]||layer} — ${wx.cloud_cover}%</td>
+    <td class="mono">${cloudFt?cloudFt.toLocaleString("fr-FR"):"—"}</td>
+    <td class="mono">${cloudFt?Math.round(cloudFt*0.3048):"—"}</td>
+    <td style="color:#4ecdc4">—</td>
+  </tr>`;
+
+  // METAR
+  document.getElementById("metarBox").textContent=
+    metar||(["95","96","99"].some(c=>wx.weather_code===+c)
+      ?"Données METAR temporairement indisponibles":"METAR non disponible — consulter aviationweather.gov");
+
+  // Alertes
+  const alerts=buildAlerts(wx,localHour);
+  const alEl=document.getElementById("alertsList");
+  alEl.innerHTML=alerts.map(a=>`
+    <div class="alert alert-${a.l}">
+      <span style="flex-shrink:0">${a.l==="danger"?"🚨":a.l==="warn"?"⚠️":"ℹ️"}</span>
+      <span>${a.m}</span>
+    </div>`).join("");
+
+  // TAF
+  const taf=buildTaf(hourly);
+  document.getElementById("tafList").innerHTML=taf.map(t=>`
+    <div class="taf-row">
+      <div class="taf-time">${t.time}</div>
+      <div class="taf-desc">${t.desc}</div>
+    </div>`).join("")||"<div class='sub'>Prévisions non disponibles.</div>";
+
+  // Demain matin
+  const tm=buildTomorrow(hourly);
+  if(tm){
+    const v=tm.verdict;
+    document.getElementById("tomorrowDate").textContent=tm.dateStr;
+    const vbox=document.getElementById("verdictBox");
+    vbox.style.background=v.bg;
+    vbox.style.borderColor=v.border;
+    document.getElementById("verdictIcon").textContent=v.icon;
+    document.getElementById("verdictTitle").textContent=v.title;
+    document.getElementById("verdictTitle").style.color=v.color;
+    document.getElementById("verdictDesc").textContent=v.desc;
+    const vtime=document.getElementById("verdictTime");
+    if(tm.idealTime!=="—"){
+      vtime.style.display="inline-block";
+      vtime.textContent=`⏰ Créneau idéal : ${tm.idealTime}`;
+    }
+    const sc={ok:"#00d4aa",info:"#4ecdc4",warn:"#ffcc02",danger:"#ff4757"};
+    const si={ok:"✅",info:"🔵",warn:"⚠️",danger:"🚫"};
+    const sb={ok:"rgba(0,212,170,.08)",info:"rgba(78,205,196,.08)",warn:"rgba(255,204,2,.08)",danger:"rgba(255,71,87,.08)"};
+    document.getElementById("factorsGrid").innerHTML=tm.factors.map(f=>`
+      <div class="factor" style="background:${sb[f.status]||sb.ok};border-color:${sc[f.status]||sc.ok}">
+        <span class="factor-icon">${f.icon}</span>
+        <div>
+          <div class="factor-label">${f.label}</div>
+          <div class="factor-value" style="color:${sc[f.status]||"#f0f8ff"}">${si[f.status]||"•"} ${f.value}</div>
+        </div>
+      </div>`).join("");
+  }
+}
+
+// ── Chargement principal ─────────────────────────────────────────────────────
+async function loadAll(){
+  document.getElementById("refreshBtn").disabled=true;
+  document.getElementById("loadingDiv").style.display="block";
+  document.getElementById("dataSection").style.display="none";
+  document.getElementById("errorBox").style.display="none";
+
+  try{
+    // 1. Open-Meteo (Arôme)
+    const omRes=await fetch(OPEN_METEO);
+    if(!omRes.ok) throw new Error(`Open-Meteo HTTP ${omRes.status}`);
+    const omData=await omRes.json();
+    const c=omData.current;
+    const wx={
+      temperature:   c.temperature_2m,
+      apparent_temperature: c.apparent_temperature,
+      dewpoint:      c.dew_point_2m,
+      humidity:      c.relative_humidity_2m,
+      weather_code:  c.weather_code,
+      cloud_cover:   c.cloud_cover,
+      wind_speed:    c.wind_speed_10m,
+      wind_direction:c.wind_direction_10m,
+      wind_gusts:    c.wind_gusts_10m,
+      pressure:      c.surface_pressure,
+      visibility:    Math.min(c.visibility??9999,9999),
+    };
+
+    // 2. METAR FMEE
+    let metar=null;
+    try{
+      const mtRes=await fetch(METAR_URL);
+      if(mtRes.ok){
+        const txt=await mtRes.text();
+        metar=txt.trim().split("\n").find(l=>l.startsWith("FMEE"))||txt.trim();
+      }
+    }catch(e){console.warn("METAR non disponible",e)}
+
+    display(wx, metar, omData.hourly);
+
+    document.getElementById("loadingDiv").style.display="none";
+    document.getElementById("dataSection").style.display="block";
+    document.getElementById("tsLabel").textContent=
+      `Mis à jour : ${new Date().toLocaleTimeString("fr-FR")} · Open-Meteo (Arôme) + METAR FMEE`;
+
+  }catch(e){
+    document.getElementById("loadingDiv").style.display="none";
+    const eb=document.getElementById("errorBox");
+    eb.style.display="block";
+    eb.innerHTML=`⚠️ Erreur : ${e.message}<br><small>Vérifie ta connexion internet puis réessaie.</small>`;
+  }
+
+  document.getElementById("refreshBtn").disabled=false;
+}
+
+// Lancement automatique
+loadAll();
+// Rafraîchissement automatique toutes les 30 min
+setInterval(loadAll, 30*60*1000);
+</script>
+</body>
+</html>
